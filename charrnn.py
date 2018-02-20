@@ -1,11 +1,11 @@
 import torch
 
 # step 1 : char --> id
-# step 1.5 : split to batches (by period)
+# step 1.5 : split to batches (by period token)
 # step 2 : id --> vectors (1-hot or embedding)
 # step 3 : create a rnn cell (one layer or  multi layer)  which input is  vectors of  step2
 # step 4 : create references and  cross entropy
-# step 5 : backpropagation of step 4
+# step 5 :  fowrad and backpropagation of step 4
 # step 5.5 :  create output function for testing
 # step 6 : create training loop and hyperparameters
 # step 7 : fine tuning on dev -data
@@ -52,21 +52,39 @@ def id2onehot(id_list):
   return onehot
 
 #https://r2rt.com/non-zero-initial-states-for-recurrent-neural-networks.html
-def initialize_h0_c0(batch_size,num_direction):
+def initialize_h0_c0(batch_size,h_size,num_layers=1,num_directions=1):
   #          h0,c0
-  return (torch.
+  return torch.zeros(num_layers * num_directions, batch_size, h_size),torch.zeros(num_layers * num_directions, batch_size, h_size)
 
 
 #sequence is 1 because we use loop for rnn implementation
-def create_rnn_cell(embedding_size,output_size,layer_num=1):
+def create_rnn_cell(embedding_size,h_size,num_layers=1,num_directions=1):
 #http://pytorch.org/tutorials/beginner/nlp/sequence_models_tutorial.html
 #http://pytorch.org/docs/master/nn.html#torch.nn.LSTM
-  pass
+  bidirectional  = False
+  if num_directions >1:
+    bidirectional  = True
+  return torch.nn.LSTM(embedding_size, h_size , num_layers,bidirectional=bidirectional)
 
+def create_references(text):
+  l = [ord(c) for c in text]
+  return l[1:]+[0]
+
+def loss(zs,ys):
+  #http://pytorch.org/docs/master/nn.html#torch.nn.CrossEntropyLoss
+  loss = torch.nn.CrossEntropyLoss()(zs,ys)
+  return loss
+
+
+class TrainingManager():
+  def __init__():
+    pass
 
 class CharRNN():
-    def __init__(self):
+    def __init__(self,embedding_size,h_size,cell_type=torch.nn.LSTM,loss_function=torch.nn.CrossEntropyLoss(),
+                num_layer=1,num_directions=1):
         pass
+        self.cell = cell_type(embedding_size)
 
     def toVectors(self):
         pass
