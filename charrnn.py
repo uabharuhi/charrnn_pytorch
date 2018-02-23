@@ -51,10 +51,8 @@ def id2onehot(id_list):
   onehot = torch.zeros(num_of_chars, ascii_max_dim ).scatter_(1, torch.LongTensor([[i] for i in id_list]),1)
   return onehot
 
-#https://r2rt.com/non-zero-initial-states-for-recurrent-neural-networks.html
-def initialize_h0_c0(batch_size,h_size,num_layers=1,num_directions=1):
-  #          h0,c0
-  return torch.zeros(num_layers * num_directions, batch_size, h_size),torch.zeros(num_layers * num_directions, batch_size, h_size)
+
+
 
 
 #sequence is 1 because we use loop for rnn implementation
@@ -81,16 +79,29 @@ class TrainingManager():
     pass
 
 class CharRNN():
-    def __init__(self,embedding_size,h_size,cell_type=torch.nn.LSTM,loss_function=torch.nn.CrossEntropyLoss(),
-                num_layer=1,num_directions=1):
-        pass
-        self.cell = cell_type(embedding_size)
+    def __init__(self,embedding_size,h_size,num_layer=1,num_directions=1,cell_type=torch.nn.LSTM,loss_function=torch.nn.CrossEntropyLoss() ):
+        self.embedding_size = embedding_size
+        self.h_size = h_size
+        self.cell = cell_type(embedding_size,h_size)
+        self.loss_function  = loss_function
+        self.num_layer = num_layer
+        self.num_directions = num_directions
 
-    def toVectors(self):
-        pass
 
-    def forward(self):
-        pass
+    #https://r2rt.com/non-zero-initial-states-for-recurrent-neural-networks.html
+    def initialize_h0_c0(batch_size,h_size,num_layers=1,num_directions=1):
+    #          h0,c0
+      return torch.zeros(num_layers * num_directions, batch_size, h_size),torch.zeros(num_layers * num_directions, batch_size, h_size)
+
+    # X  : batches of X's (one hot/embedding) vectors
+    # y  : batches of y
+    def forward(self,Xs,ys):
+      #LSTM
+      #
+      for X in Xs:
+                                        #input (seq_len, batch, input_size)
+        out, hiddens = self.cell(X, hiddens)
+
 
     def backward(self):
         pass
