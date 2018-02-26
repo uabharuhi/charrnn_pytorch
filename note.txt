@@ -1,0 +1,27 @@
+1. 因為sequence size不一致 代表用batch處理的時候會有一點問題
+	e.g. 
+	[   [1,2,3,4],
+		[2,2],
+		[1],
+		[3,3,3]]
+	
+	將其拆為2個batch 
+	拆法?
+		第一種: 沿著 sequence dim拆
+			第一個batch是 [[1,2,1,3],[2,2,3](2,2,X,3)]
+			第二個是 [[3,3](3,X,X3),[4](4,X,X,X)]
+		第二種: 沿著 第幾個data 拆(比較直覺)
+			第一個batch是 [[1,2,3,4],[2,2]]
+			第二個是 [[1],[3,3,3](4,X,X,X)] 
+			這種拆法在在keras stateful RNN裡面會用的到
+			stateful RNN是上一個batch的hidden state會儲存在下一次的batch上面
+	
+	無論何種拆法都會遇到一個問題-->無法把包含不同長度的sequencebatch變成tensor,
+	因為tensor是一個N*M*?反正每一個dim上element的維度是一樣的 -->
+	所以必定不能將batch轉成tensor ,最直覺是用list of tensor來處理
+	
+
+	第一種拆法的問題:
+			
+	
+	

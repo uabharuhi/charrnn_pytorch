@@ -1,7 +1,8 @@
 import torch
+from torch import nn
 
 # step 1 : char --> id
-# step 1.5 : split to batches (by period token)
+# step 1.5 : split to batches (by period token) TODO: train val test
 # step 2 : id --> vectors (1-hot or embedding)
 # step 3 : create a rnn cell (one layer or  multi layer)  which input is  vectors of  step2
 # step 4 : create references and  cross entropy
@@ -36,23 +37,6 @@ Take your time, baby, your blood needs slowing down."
 #        pass
 #    def
 #
-def preprocessing(s):
-    return  [ord(c) for c in s]
-
-def text2Batches(text):
-  return [ preprocessing(s)  for s in text.split(".") if len(s)>0]
-
-
-def id2onehot(id_list):
-  # ascii biggerst is 255
-  assert min(id_list)>=0
-  ascii_max_dim = 256
-  num_of_chars = len(id_list)
-  onehot = torch.zeros(num_of_chars, ascii_max_dim ).scatter_(1, torch.LongTensor([[i] for i in id_list]),1)
-  return onehot
-
-
-
 
 
 #sequence is 1 because we use loop for rnn implementation
@@ -64,9 +48,7 @@ def create_rnn_cell(embedding_size,h_size,num_layers=1,num_directions=1):
     bidirectional  = True
   return torch.nn.LSTM(embedding_size, h_size , num_layers,bidirectional=bidirectional)
 
-def create_references(text):
-  l = [ord(c) for c in text]
-  return l[1:]+[0]
+
 
 def loss(zs,ys):
   #http://pytorch.org/docs/master/nn.html#torch.nn.CrossEntropyLoss
@@ -74,33 +56,97 @@ def loss(zs,ys):
   return loss
 
 
+
+class DataHandler():
+  def __init__(self,text):
+    self.text = text
+
+  # return batch_X (N,), batch_y ()
+  def text2Batches(self):
+    # split text by period
+    text = self.text
+    charID_batches =   [[ord(c) for c in s]  for s in text.split(".") if len(s)>0]
+    print(charID_batches)
+    #                 X              , y      
+    batches =  [ (self.id2onehot(IDS), torch.LongTensor(IDS[1:]+[0])) for IDS in charID_batches]
+    print(batches)
+    return batches
+
+  def id2onehot(self,id_list):
+    # ascii biggerst is 255
+    assert min(id_list)>=0
+    ascii_max_dim = 256
+    num_of_chars = len(id_list)
+    onehot = torch.zeros(num_of_chars, ascii_max_dim ).scatter_(1, torch.LongTensor([[i] for i in id_list]),1)
+    return onehot
+
+
+
 class TrainingManager():
-  def __init__():
+  def __init__(self,epoch_num):
     pass
+
+
+
 
 class CharRNN():
     def __init__(self,embedding_size,h_size,num_layer=1,num_directions=1,cell_type=torch.nn.LSTM,loss_function=torch.nn.CrossEntropyLoss() ):
+        
         self.embedding_size = embedding_size
         self.h_size = h_size
-        self.cell = cell_type(embedding_size,h_size)
-        self.loss_function  = loss_function
         self.num_layer = num_layer
         self.num_directions = num_directions
+        if num_directions > 1:
+          self.cell = cell_type(embedding_size,h_size,num_layer,bidirectional = True)
+        else:
+          self.cell = cell_type(embedding_size,h_size,num_layer)
+
+
+        self.softmax = nn.Softmax(dim=2)
+        self.loss_function  = loss_function
+  
+
+
+
 
 
     #https://r2rt.com/non-zero-initial-states-for-recurrent-neural-networks.html
-    def initialize_h0_c0(batch_size,h_size,num_layers=1,num_directions=1):
+    def initialize_h0_c0(self,batch_size):
     #          h0,c0
-      return torch.zeros(num_layers * num_directions, batch_size, h_size),torch.zeros(num_layers * num_directions, batch_size, h_size)
+      return  torch.zeros(self.num_layers * self.num_directions, batch_size, self.h_size),torch.zeros(self.num_layers * self.num_directions, batch_size, self.h_size)
 
-    # X  : batches of X's (one hot/embedding) vectors
-    # y  : batches of y
-    def forward(self,Xs,ys):
-      #LSTM
+    # X  : batches of X's (one hot/embedding) vectors (N , embedding dim )
+    # y  : batches of y (N , )
+    def forward(self,Xs,ys,predict=False):
+      # LSTM
+      
+      #outputs = []
+      # turn X to 3d (1,N,embedding_dim)
+      print('initial state')
+      batch_size = len(Xs)
+      hiddens = self.initialize_h0_c0(1) # not require grad so it is a tensor , loop so batch size is 1
+
+      total_loss = 0.0
+      #必須要把轉換成3d dim的operation放在這裡
+      for _X in Xs:      #          1     ,   N  , embedding_dim
+                         # input (seq_len , batch, input_size)
+        X = _X.view(1,_X.size(0),-1)               
+        out, hiddens =  self.cell(X, hiddens)
+
+        #nn.Softmax()()
+        #outputs.append(out)
+        if predict :
+          prob =   self.softmax(X)
+        else:
+          pass
+          
+      #TODO : schedule sampling ?
+
       #
-      for X in Xs:
-                                        #input (seq_len, batch, input_size)
-        out, hiddens = self.cell(X, hiddens)
+
+
+
+
 
 
     def backward(self):
