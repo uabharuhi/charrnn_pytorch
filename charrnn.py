@@ -1,5 +1,7 @@
 import torch
 from torch import nn
+import torch.optim as optim
+from torch.autograd import Variable
 
 # step 1 : char --> id
 # step 1.5 : split to batches (by period token) TODO: train val test
@@ -58,19 +60,22 @@ def loss(zs,ys):
 
 
 class DataHandler():
-  def __init__(self,text):
+                    #    2 sentences is a batch
+  def __init__(self,text,batch_size=2):
     self.text = text
+    self.batch_size = batch_size
+    self.currentIndex = 0
+    self.batches = None 
 
   # return batch_X (N,), batch_y ()
   def text2Batches(self):
     # split text by period
     text = self.text
     charID_batches =   [[ord(c) for c in s]  for s in text.split(".") if len(s)>0]
-    print(charID_batches)
+    #print(charID_batches)
     #                 X              , y      
-    batches =  [ (self.id2onehot(IDS), torch.LongTensor(IDS[1:]+[0])) for IDS in charID_batches]
-    print(batches)
-    return batches
+    self.batches =  [ (self.id2onehot(IDS), torch.LongTensor(IDS[1:]+[0])) for IDS in charID_batches]
+    return self.batches
 
   def id2onehot(self,id_list):
     # ascii biggerst is 255
@@ -80,6 +85,29 @@ class DataHandler():
     onehot = torch.zeros(num_of_chars, ascii_max_dim ).scatter_(1, torch.LongTensor([[i] for i in id_list]),1)
     return onehot
 
+  def getNextBatch(self):
+    print('current index')
+    print(self.currentIndex)
+    assert self.batches is not None
+    while True:
+      if self.currentIndex < len(self.batches):
+
+        nextIndex = self.currentIndex + self.batch_size
+        returnBatch = None
+        if nextIndex >= len(self.batches):
+          returnBatch = self.batches[self.currentIndex:len(self.batches)]
+          yield returnBatch
+          print('- - - - - - - - -- -  - -- - - ')
+          break
+        #print("aa")
+        #print(self.currentIndex,nextIndex)
+        returnBatch = self.batches[self.currentIndex:nextIndex]
+        #print(returnBatch)
+        self.currentIndex = nextIndex
+        yield returnBatch
+
+  def reset(self):
+    self.currentIndex = 0
 
 
 class TrainingManager():
@@ -89,9 +117,9 @@ class TrainingManager():
 
 
 
-class CharRNN():
+class CharRNN(nn.Module):
     def __init__(self,embedding_size,h_size,num_layer=1,num_directions=1,cell_type=torch.nn.LSTM,loss_function=torch.nn.CrossEntropyLoss() ):
-        
+        super(CharRNN, self).__init__()
         self.embedding_size = embedding_size
         self.h_size = h_size
         self.num_layer = num_layer
@@ -104,7 +132,7 @@ class CharRNN():
 
         self.softmax = nn.Softmax(dim=2)
         self.loss_function  = loss_function
-  
+        self.optimizer = optim.SGD(self.parameters(), lr=0.1)
 
 
 
@@ -118,36 +146,53 @@ class CharRNN():
     # X  : batches of X's (one hot/embedding) vectors (N , embedding dim )
     # y  : batches of y (N , )
     def forward(self,Xs,ys,predict=False):
+      self.zero_grad()
       # LSTM
       
       #outputs = []
       # turn X to 3d (1,N,embedding_dim)
       print('initial state')
-      batch_size = len(Xs)
       hiddens = self.initialize_h0_c0(1) # not require grad so it is a tensor , loop so batch size is 1
 
-      total_loss = 0.0
+      prob_list = []
+      predict_list = []
+
+      total_loss = Variable(torch.FloatTensor([0.0])  , requires_grad=True)
       #必須要把轉換成3d dim的operation放在這裡
-      for _X in Xs:      #          1     ,   N  , embedding_dim
-                         # input (seq_len , batch, input_size)
-        X = _X.view(1,_X.size(0),-1)               
-        out, hiddens =  self.cell(X, hiddens)
+      #batch 裡面的sequence 一個一個的x拿出來用
+      for _X,y in zip(Xs,ys):  # loop through sequence     
+                  #          1     ,   N  , embedding_dim
+                  #  input (seq_len , batch, input_size)
+        X = _X.view( 1 , _X.size(0) , -1 )               
+        _out, hiddens =  self.cell(X, hiddens)
 
         #nn.Softmax()()
         #outputs.append(out)
+
+        #(N,output_dim)
+        out = _out.view(_X.size(0),-1)
         if predict :
-          prob =   self.softmax(X)
+          # (N*embedding_dim)
+          prob =  self.softmax(out)
+
+          prob_list.append(prob)
+          # (N)   
+          predict_y = torch.max(prob,1)[1]
+          predict_list.append(predict_y)
+
         else:
-          pass
+          # loss (1)
+          loss = self.loss_function(out)
+          total_loss = total_loss + loss
+        if predict :
+          return prob
+        return total_loss
+
           
       #TODO : schedule sampling ?
 
       #
 
 
-
-
-
-
-    def backward(self):
+    def backward(self,loss):
         pass
