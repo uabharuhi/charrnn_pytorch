@@ -22,7 +22,20 @@
 	
 
 	第一種拆法的問題:
-			
-	妳平常follow台南市政府是看它的首頁嗎
-	https://www.tainan.gov.tw/tainan/default.asp
+				到時候loop是沿著sequence index looping -->問題是sequence長度根本不一樣
+				這就需要padding -->如果padding了根本不需要for loop...
+				好處是可以一次處理很多個(batch size)的data
+	第二種拆法的問題
+				不需要padding 但是一次只能用一筆data --> 如果要一次很多筆,還是要padding,因為rnn是
+				吃tensor的 
+				阿這樣不就跟tf 一樣
+	目標是第二種拆法又可以不用一筆一筆處理--> pytorch要如何這樣?
+	pad sequence
+	#https://discuss.pytorch.org/t/how-to-turn-list-of-varying-length-tensor-into-a-tensor/1361/3
+	#https://gist.github.com/Tushar-N/dfca335e370a2bc3bc79876e6270099e
+	#https://github.com/ywk991112/pytorch-chatbot/blob/master/train.py
+	#https://www.ctolib.com/topics-124939.html
 	
+	
+	
+	pytorch的lstm竟然只有最後一層的output..
